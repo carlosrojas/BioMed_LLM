@@ -1,0 +1,23 @@
+# API
+fastapi
+uvicorn[standard]
+
+# NLP
+spacy>=3.7
+scispacy>=0.5.4
+negspacy>=1.0.3
+transformers>=4.43.0
+torch --index-url https://download.pytorch.org/whl/cpu
+sentence-transformers>=3.0.0
+
+# DB
+elasticsearch>=8.14.0
+pymongo>=4.4
+motor>=3.1.0
+dnspython>=2.3.0
+
+# Utilities
+pydantic>=2.7.0
+numpy
+python-dotenv
+httpx

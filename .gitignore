@@ -1,1 +1,49 @@
 .env
+.venv/
+venv/
+env/
+*.py[cod]
+__pycache__/
+
+# Python packaging / build
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Test, lint, type caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Editor / OS
+.vscode/
+.idea/
+.ipynb_checkpoints/
+.DS_Store
+Thumbs.db
+
+# Logs and databases
+*.log
+logs/
+*.sqlite3
+*.db
+
+# Caches and caches of ML tooling
+.cache/
+.cache/huggingface/
+transformers_cache/
+datasets_cache/
+
+# Large/derived project artifacts (do not commit model weights or dataset dumps)
+data/
+datasets/
+models/
+checkpoints/
+*.pt
+*.ckpt
+*.bin
+*.h5
