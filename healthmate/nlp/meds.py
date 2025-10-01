@@ -6,7 +6,7 @@ RX_FREQ = re.compile(r"\b(once|twice|every\s?\d+\s?(?:h|hr|hour|hours|day|days)|
 RX_ROUTE = re.compile(r"\b(oral|po|by mouth|iv|intravenous|im|subcutaneous|sc|topical|inhal(ed|ation)?)\b", re.I)
 RX_FORM  = re.compile(r"\b(tablet|tab|capsule|cap|syrup|solution|suspension|cream|ointment|patch|inhaler)\b", re.I)
 
-_nlp = spacy.load("en_ner_bc5cdr_md")
+_nlp = spacy.load("en_core_web_sm")
 _nlp.add_pipe("negex", last=True)
 
 def extract_medications(text: str):

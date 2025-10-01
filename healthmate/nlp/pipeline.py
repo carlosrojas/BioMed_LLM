@@ -1,8 +1,8 @@
 import spacy
 from negspacy.negation import Negex
 
-# Use scispaCy drug/disease model you installed: en_ner_bc5cdr_md
-NLP_MODEL = "en_ner_bc5cdr_md"
+
+NLP_MODEL = "en_core_web_sm"
 
 _nlp = spacy.load(NLP_MODEL)
 _nlp.add_pipe("negex", last=True)
