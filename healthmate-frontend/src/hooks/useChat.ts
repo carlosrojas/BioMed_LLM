@@ -16,7 +16,7 @@ export const useChat = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputText.trim()) return;
 
     const userMessage: Message = {
@@ -30,11 +30,37 @@ export const useChat = () => {
     setInputText("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(inputText);
-      setMessages((prev) => [...prev, aiResponse]);
-      setIsTyping(false);
-    }, 2000);
+    try {
+      const res = await fetch("http://127.0.0.1:8000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: inputText }),
+      });
+      const data = await res.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: "ai",
+          content:
+            data.message ||
+            data.message ||
+            "Sorry, I couldn't generate a response.",
+          timestamp: new Date(),
+        },
+      ]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: "ai",
+          content: "Sorry, there was an error connecting to the backend.",
+          timestamp: new Date(),
+        },
+      ]);
+    }
+    setIsTyping(false);
   };
 
   return {
