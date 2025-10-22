@@ -42,6 +42,7 @@ app.add_middleware(
 
 class Query(BaseModel):
     text: str
+    history: list = []
 
 
 @app.get("/health")
@@ -56,8 +57,14 @@ def health():
 
 @app.post("/chat")
 async def chat(q: Query):
-    hits = hybrid_search(q.text, k=3)
-    ans = answer_with_context(q.text, hits)
+    history_text = (
+        "\n".join([f"{m['type'].capitalize()}: {m['content']}" for m in q.history])
+        if q.history
+        else ""
+    )
+    full_prompt = f"{history_text}\nUser: {q.text}" if history_text else q.text
+    hits = hybrid_search(full_prompt, k=3)
+    ans = answer_with_context(full_prompt, hits)
     gated = safety_gate(q.text, ans, hits)
     return {"retrieved": hits, **gated}
 

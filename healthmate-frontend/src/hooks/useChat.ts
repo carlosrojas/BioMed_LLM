@@ -34,7 +34,13 @@ export const useChat = () => {
       const res = await fetch("http://127.0.0.1:8000/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: inputText }),
+        body: JSON.stringify({
+          text: inputText,
+          history: [...messages, userMessage].map((m) => ({
+            type: m.type,
+            content: m.content,
+          })),
+        }),
       });
       const data = await res.json();
       setMessages((prev) => [
