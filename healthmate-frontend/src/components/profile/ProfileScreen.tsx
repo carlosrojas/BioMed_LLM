@@ -8,19 +8,27 @@ import {
   Shield,
   ChevronRight,
 } from "lucide-react";
-import { UserProfile } from "../../types";
+import { UserProfile, ScreenType } from "../../types";
 
 interface ProfileScreenProps {
   userProfile: UserProfile;
   setUserProfile: (
     profile: UserProfile | ((prev: UserProfile) => UserProfile)
   ) => void;
+  setCurrentScreen: (screen: ScreenType) => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   userProfile,
   setUserProfile,
+  setCurrentScreen,
 }) => {
+  const handleLogout = () => {
+    // Clear localStorage
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setCurrentScreen("login");
+  };
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -39,9 +47,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   {userProfile.age
                     ? `Age: ${userProfile.age}`
                     : "Age not specified"}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Language: {userProfile.language}
                 </p>
               </div>
             </div>
@@ -107,26 +112,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </div>
         </div>
 
-        {/* Settings */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Settings</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <div className="flex items-center gap-3">
-                <Globe className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-900">Language Settings</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </div>
-            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <div className="flex items-center gap-3">
-                <Shield className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-900">Privacy Settings</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </div>
-          </div>
-        </div>
+        {/* Logout button */}
+        <button
+          className="w-full bg-red-200 text-black font-bold px-4 py-2 rounded-lg hover:bg-red-300 transition-colors flex items-center justify-center"
+          onClick={handleLogout}
+        >
+          Logout
+        </button>
       </div>
     </div>
   );

@@ -21,7 +21,7 @@ class UserLogin(BaseModel):
 
 class UserResponse(BaseModel):
     id: str
-    firstName: str
+    fullName: str
     email: str
     createdAt: datetime
 
@@ -38,4 +38,15 @@ class UserProfile(BaseModel):
     medications: List[str] = []
     conditions: List[str] = []
     language: str = "en"
+
+class UserProfileResponse(BaseModel):
+    id: str
+    fullName: str
+    email: str
+    age: str
+    gender: str
+    allergies: List[str]
+    medications: List[str]
+    conditions: List[str]
+    createdAt: datetime
 

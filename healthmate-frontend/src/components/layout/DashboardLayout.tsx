@@ -33,10 +33,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         setCurrentScreen={setCurrentScreen}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header currentScreen={currentScreen} />
-        {currentScreen === "chat" && <ChatScreen />}
+        <Header
+          currentScreen={currentScreen}
+          setCurrentScreen={setCurrentScreen}
+        />
+        {/* Show chat screen by default on dashboard, or when explicitly on chat */}
+        {(currentScreen === "dashboard" || currentScreen === "chat") && (
+          <ChatScreen />
+        )}
         {currentScreen === "profile" && (
           <ProfileScreen
+            setCurrentScreen={setCurrentScreen}
             userProfile={userProfile}
             setUserProfile={setUserProfile}
           />

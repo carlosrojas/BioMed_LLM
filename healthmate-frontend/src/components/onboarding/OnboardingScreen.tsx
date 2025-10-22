@@ -3,16 +3,10 @@ import { Heart, CheckCircle } from "lucide-react";
 import { UserProfile, ScreenType } from "../../types";
 
 interface OnboardingScreenProps {
-  userProfile: UserProfile;
-  setUserProfile: (
-    profile: UserProfile | ((prev: UserProfile) => UserProfile)
-  ) => void;
   setCurrentScreen: (screen: ScreenType) => void;
 }
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
-  userProfile,
-  setUserProfile,
   setCurrentScreen,
 }) => {
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -56,78 +50,6 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
                 Your health information stays confidential
               </p>
             </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: "Set Up Your Profile",
-      content: (
-        <div className="max-w-md mx-auto">
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Name (Optional)
-              </label>
-              <input
-                type="text"
-                className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter your name"
-                value={userProfile.name}
-                onChange={(e) =>
-                  setUserProfile((prev) => ({
-                    ...prev,
-                    name: e.target.value,
-                  }))
-                }
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Age Range
-              </label>
-              <select
-                className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={userProfile.age}
-                onChange={(e) =>
-                  setUserProfile((prev) => ({ ...prev, age: e.target.value }))
-                }
-              >
-                <option value="">Select age range</option>
-                <option value="18-29">18-29</option>
-                <option value="30-49">30-49</option>
-                <option value="50-69">50-69</option>
-                <option value="70+">70+</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Preferred Language
-              </label>
-              <select
-                className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={userProfile.language}
-                onChange={(e) =>
-                  setUserProfile((prev) => ({
-                    ...prev,
-                    language: e.target.value,
-                  }))
-                }
-              >
-                <option value="English">English</option>
-                <option value="Spanish">Spanish</option>
-                <option value="French">French</option>
-                <option value="Chinese">Chinese</option>
-              </select>
-            </div>
-          </div>
-          <div className="mt-8 text-center">
-            <button
-              onClick={() => setCurrentScreen("dashboard")}
-              className="text-blue-600 hover:text-blue-800 transition-colors"
-            >
-              Skip for now - I'll set this up later
-            </button>
           </div>
         </div>
       ),

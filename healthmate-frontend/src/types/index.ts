@@ -22,7 +22,6 @@ export interface UserProfile {
   allergies: string[];
   medications: string[];
   conditions: string[];
-  language: string;
 }
 
 export interface LoginForm {
@@ -31,9 +30,14 @@ export interface LoginForm {
 }
 
 export interface SignupForm {
-  firstName: string;
+  fullName: string;
   email: string;
   password: string;
+  age: string;
+  gender: string;
+  allergies: string[];
+  medications: string[];
+  conditions: string[];
 }
 
 export type ScreenType =

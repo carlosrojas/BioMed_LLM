@@ -59,6 +59,7 @@ uvicorn healthmate.api.main:app --reload
 - `POST /chat` — Retrieval-augmented chat using Llama 3.1 8B via Ollama
 - `POST /auth/signup` - Sign up new user
 - `POST /auth/login` - Login
+- `GET /user/profile` - Get user profile
 
 ## Notes
 

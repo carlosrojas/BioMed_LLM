@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -11,9 +12,12 @@ from datetime import datetime
 # from healthmate.api.safety import safety_gate
 
 # Authentication imports
-from healthmate.api.models import UserSignup, UserLogin, TokenResponse, UserResponse
-from healthmate.api.auth import get_password_hash, verify_password, create_access_token
-from healthmate.api.database import get_user_by_email, create_user 
+from healthmate.api.models import UserSignup, UserLogin, TokenResponse, UserResponse, UserProfileResponse
+from healthmate.api.auth import get_password_hash, verify_password, create_access_token, decode_token
+from healthmate.api.database import get_user_by_email, create_user
+
+# Security
+security = HTTPBearer() 
 
 app = FastAPI(title="HealthMate MVP")
 
@@ -90,7 +94,7 @@ async def signup(user_data: UserSignup):
     # Prepare response
     user_response = UserResponse(
         id=created_user["_id"],
-        firstName=created_user["fullName"],
+        fullName=created_user["fullName"],
         email=created_user["email"],
         createdAt=created_user["createdAt"]
     )
@@ -125,9 +129,57 @@ async def login(credentials: UserLogin):
     # Prepare response
     user_response = UserResponse(
         id=str(user["_id"]),
-        firstName=user["fullName"],
+        fullName=user["fullName"],
         email=user["email"],
         createdAt=user["createdAt"]
     )
     
     return TokenResponse(access_token=access_token, user=user_response)
+
+@app.get("/user/profile", response_model=UserProfileResponse)
+async def get_user_profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Get user profile by email from JWT token
+    Requires: Authorization header with Bearer token
+    """
+    # Decode JWT token to get email
+    try:
+        payload = decode_token(credentials.credentials)
+        email = payload.get("sub")  # "sub" contains the email
+        
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: email not found"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    
+    # Fetch user from database by email
+    user = await get_user_by_email(email)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Prepare and return user profile
+    user_profile = UserProfileResponse(
+        id=str(user["_id"]),
+        fullName=user["fullName"],
+        email=user["email"],
+        age=user.get("age", ""),
+        gender=user.get("gender", ""),
+        allergies=user.get("allergies", []),
+        medications=user.get("medications", []),
+        conditions=user.get("conditions", []),
+        createdAt=user["createdAt"]
+    )
+    
+    return user_profile
