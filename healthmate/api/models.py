@@ -31,13 +31,12 @@ class TokenResponse(BaseModel):
     user: UserResponse
 
 class UserProfile(BaseModel):
-    name: str
-    age: Optional[str] = None
-    gender: Optional[str] = None
-    allergies: List[str] = []
-    medications: List[str] = []
-    conditions: List[str] = []
-    language: str = "en"
+    fullName: str = Field(..., min_length=1, max_length=100)
+    age: str
+    gender: str
+    allergies: Optional[List[str]] = []
+    medications: Optional[List[str]] = []
+    conditions: Optional[List[str]] = []
 
 class UserProfileResponse(BaseModel):
     id: str
