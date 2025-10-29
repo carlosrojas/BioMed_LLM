@@ -57,6 +57,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
 }) => {
   const [showMedications, setShowMedications] = useState(false);
   const [showAllergies, setShowAllergies] = useState(false);
+  const [passwordError, setPasswordError] = useState<string>("");
 
   const toggleMedication = (med: string) => {
     const current = signupForm.medications || [];
@@ -81,6 +82,16 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
       setSignupForm({ ...signupForm, allergies: [...current, allergy] });
     }
   };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (signupForm.password.length < 6) {
+      setPasswordError("Password must be at least 6 characters long");
+      return;
+    }
+    setPasswordError("");
+    handleSignup(e);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-8">
       <div className="w-full max-w-2xl">
@@ -91,7 +102,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
             <p className="text-gray-600">Create your HealthMate account</p>
           </div>
 
-          <form onSubmit={handleSignup} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -179,6 +190,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
                   setSignupForm({ ...signupForm, password: e.target.value })
                 }
               />
+              {passwordError && (
+                <p className="text-sm text-red-500 mt-1">{passwordError}</p>
+              )}
             </div>
 
             {/* Medications */}
