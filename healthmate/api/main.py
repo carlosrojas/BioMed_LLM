@@ -4,7 +4,6 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from datetime import datetime
 
-
 # from healthmate.nlp.pipeline import parse_clinical
 # from healthmate.nlp.meds import extract_medications
 # from healthmate.retriever.search import hybrid_search
@@ -12,9 +11,9 @@ from datetime import datetime
 # from healthmate.api.safety import safety_gate
 
 # Authentication imports
-from healthmate.api.models import UserSignup, UserLogin, TokenResponse, UserResponse, UserProfileResponse
+from healthmate.api.models import UserProfile, UserSignup, UserLogin, TokenResponse, UserResponse, UserProfileResponse
 from healthmate.api.auth import get_password_hash, verify_password, create_access_token, decode_token
-from healthmate.api.database import get_user_by_email, create_user
+from healthmate.api.database import get_user_by_email, create_user, update_user_profile_by_email
 
 # Security
 security = HTTPBearer() 
@@ -183,3 +182,71 @@ async def get_user_profile(credentials: HTTPAuthorizationCredentials = Depends(s
     )
     
     return user_profile
+
+@app.put("/user/profile", response_model=UserProfileResponse)
+async def update_user_profile(
+    profile_data: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Update user profile by email from JWT token
+    Requires: Authorization header with Bearer token
+    """
+    # Decode JWT token to get email
+    try:
+        payload = decode_token(credentials.credentials)
+        email = payload.get("sub")  # "sub" contains the email
+        
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: email not found"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    
+    # Get user by email
+    user = await get_user_by_email(email)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Update user profile
+    try:
+        updated_user = await update_user_profile_by_email(email, profile_data)
+        
+        if not updated_user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update profile"
+            )
+        
+        # Prepare response
+        user_profile = UserProfileResponse(
+            id=str(updated_user["_id"]),
+            fullName=updated_user["fullName"],
+            email=updated_user["email"],
+            age=updated_user.get("age", ""),
+            gender=updated_user.get("gender", ""),
+            allergies=updated_user.get("allergies", []),
+            medications=updated_user.get("medications", []),
+            conditions=updated_user.get("conditions", []),
+            createdAt=updated_user["createdAt"]
+        )
+        
+        return user_profile
+        
+    except Exception as e:
+        print(f"Error updating profile: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update profile"
+        )
