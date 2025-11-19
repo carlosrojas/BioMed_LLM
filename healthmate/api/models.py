@@ -49,3 +49,21 @@ class UserProfileResponse(BaseModel):
     conditions: List[str]
     createdAt: datetime
 
+class Message(BaseModel):
+    role: str
+    content: str
+    timestamp: datetime
+
+class SaveChatRequest(BaseModel):
+    title: Optional[str] = None
+    messages: List[dict]  # Accept flexible message format from frontend
+
+class Conversation(BaseModel):
+    userEmail: str
+    title: str
+    messages: List[Message]
+    createdAt: datetime
+
+
+
+

@@ -2,8 +2,15 @@ import { useState, useRef, useEffect } from "react";
 import { Message } from "../types";
 import { generateAIResponse } from "../utils/aiResponse";
 
-export const useChat = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+interface UseChatOptions {
+  initialMessages?: Message[];
+  chatId?: string;
+}
+
+export const useChat = (options?: UseChatOptions) => {
+  const [messages, setMessages] = useState<Message[]>(
+    options?.initialMessages || []
+  );
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -15,6 +22,13 @@ export const useChat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Load initial messages if provided
+  useEffect(() => {
+    if (options?.initialMessages) {
+      setMessages(options.initialMessages);
+    }
+  }, [options?.initialMessages]);
 
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;

@@ -1,5 +1,5 @@
 import React from "react";
-import { Heart, MessageCircle, User, Menu } from "lucide-react";
+import { Heart, MessageCircle, User, Menu, History } from "lucide-react";
 import { ScreenType } from "../../types";
 
 interface SidebarProps {
@@ -20,7 +20,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: "chat" as ScreenType,
       icon: MessageCircle,
       label: "AI Chat",
-      active: currentScreen === "chat",
+      active: currentScreen === "chat" || currentScreen === "dashboard",
+    },
+    {
+      id: "chat-history" as ScreenType,
+      icon: History,
+      label: "Chat History",
+      active: currentScreen === "chat-history",
     },
     {
       id: "profile" as ScreenType,

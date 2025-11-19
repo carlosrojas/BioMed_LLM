@@ -1,10 +1,21 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { MessageCircle, Heart } from "lucide-react";
-import { Message } from "./Message";
+import { Message as MessageType } from "../../types";
 import { ChatInput } from "./ChatInput";
 import { useChat } from "../../hooks/useChat";
+import { Message } from "./Message";
 
-export const ChatScreen: React.FC = () => {
+interface ChatScreenProps {
+  onMessagesChange?: (messages: MessageType[]) => void;
+  initialMessages?: MessageType[];
+  chatId?: string;
+}
+
+export const ChatScreen: React.FC<ChatScreenProps> = ({
+  onMessagesChange,
+  initialMessages,
+  chatId,
+}) => {
   const {
     messages,
     inputText,
@@ -12,7 +23,14 @@ export const ChatScreen: React.FC = () => {
     isTyping,
     chatEndRef,
     handleSendMessage,
-  } = useChat();
+  } = useChat({ initialMessages, chatId });
+
+  // Notify parent when messages change
+  useEffect(() => {
+    if (onMessagesChange) {
+      onMessagesChange(messages);
+    }
+  }, [messages, onMessagesChange]);
 
   return (
     <div className="flex-1 flex flex-col">

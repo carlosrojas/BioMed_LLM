@@ -4,6 +4,7 @@ Uses MongoDB Atlas with pymongo
 """
 from motor.motor_asyncio import AsyncIOMotorClient
 from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List
 from bson import ObjectId
 from datetime import datetime
 from dotenv import load_dotenv
@@ -11,7 +12,7 @@ from pathlib import Path
 import os
 load_dotenv()
 
-from healthmate.api.models import UserProfile
+from healthmate.api.models import UserProfile, Conversation, Message
 
 uri = os.getenv("MONGO_URI")
 
@@ -22,7 +23,7 @@ client = AsyncIOMotorClient(uri)
 db = client["healthmate"]
 users_collection = db["users"]
 llm_interactions_collection = db["llm_interactions"]
-
+conversations_collection = db["conversations"]
 print("✅ MongoDB Atlas client initialized (async mode)")
 
 
@@ -256,3 +257,66 @@ async def get_llm_interaction_stats() -> Dict[str, Any]:
         "total_thumbs_down": total_thumbs_down,
         "thumbs_up_rate": thumbs_up_rate,
     }
+
+async def save_chat_history(user_email: str, title: str, messages: List[Message]) -> Optional[dict]:
+    try: 
+        chat_history = Conversation(userEmail=user_email, title=title, messages=messages, createdAt=datetime.utcnow())
+        chat_dict = chat_history.model_dump()
+        result = await conversations_collection.insert_one(chat_dict)
+        chat_dict["_id"] = str(result.inserted_id)
+        return chat_dict
+    except Exception as e:
+        print(f"Error saving chat history: {e}")
+        return None
+async def get_chat_history_by_user_email(user_email: str) -> list:
+    try:
+        conversations = await conversations_collection.find({"userEmail": user_email}).sort("createdAt", -1).to_list(length=None)
+
+        for chat in conversations:
+            chat["_id"] = str(chat["_id"])
+        return conversations
+
+    
+    except Exception as e:
+        print(f"Error getting chat history by user email: {e}")
+        return None
+
+async def get_conversation_by_id(conversation_id: str, user_email: str) -> Optional[dict]:
+    try:
+        conversation = await conversations_collection.find_one({"_id": ObjectId(conversation_id), "userEmail": user_email})
+        if conversation:
+            conversation["_id"] = str(conversation["_id"])
+            return conversation
+        else:
+            return None
+    except Exception as e:
+        print(f"Error getting chat history by id: {e}")
+        return None
+
+async def update_conversation_by_id(conversation_id: str, user_email: str, conversation_data: dict) -> Optional[dict]:
+    try:
+        # Prepare update data
+        update_data = {**conversation_data, "updatedAt": datetime.utcnow()}
+        
+        # If messages are provided, convert them to dict format
+        if "messages" in update_data and isinstance(update_data["messages"], list):
+            update_data["messages"] = [
+                msg.model_dump() if hasattr(msg, "model_dump") else msg
+                for msg in update_data["messages"]
+            ]
+        
+        result = await conversations_collection.update_one(
+            {"_id": ObjectId(conversation_id), "userEmail": user_email}, 
+            {"$set": update_data}
+        )
+        if result.modified_count > 0:
+            updated = await conversations_collection.find_one({"_id": ObjectId(conversation_id), "userEmail": user_email})
+            if updated:
+                updated["_id"] = str(updated["_id"])
+            return updated
+        else:
+            print(f"No conversation found to update")
+            return None
+    except Exception as e:
+        print(f"Error updating conversation by id: {e}")
+        return None
