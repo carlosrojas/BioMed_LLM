@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Toaster } from "react-hot-toast";
 import { SplashScreen } from "./components/auth/SplashScreen";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { SignupScreen } from "./components/auth/SignupScreen";
@@ -251,6 +252,7 @@ const HealthMateApp: React.FC = () => {
         return <OnboardingScreen setCurrentScreen={setCurrentScreen} />;
       case "dashboard":
       case "chat":
+      case "chat-history":
       case "profile":
         return (
           <DashboardLayout
@@ -267,7 +269,35 @@ const HealthMateApp: React.FC = () => {
     }
   };
 
-  return <div className="min-h-screen bg-gray-100">{renderScreen()}</div>;
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: "#fff",
+            color: "#363636",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+          },
+          success: {
+            iconTheme: {
+              primary: "#10b981",
+              secondary: "#fff",
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: "#ef4444",
+              secondary: "#fff",
+            },
+          },
+        }}
+      />
+      {renderScreen()}
+    </div>
+  );
 };
 
 export default HealthMateApp;

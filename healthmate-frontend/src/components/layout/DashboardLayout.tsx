@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { ChatScreen } from "../chat/ChatScreen";
 import { ProfileScreen } from "../profile/ProfileScreen";
-import { ScreenType, UserProfile } from "../../types";
+import { ChatHistoryScreen } from "../chat/ChatHistoryScreen";
+import { ScreenType, UserProfile, Message } from "../../types";
 
 interface DashboardLayoutProps {
   currentScreen: ScreenType;
@@ -24,6 +25,136 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   userProfile,
   setUserProfile,
 }) => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [currentChatTitle, setCurrentChatTitle] = useState<string | null>(null);
+
+  // Reset chat state when navigating away from chat screens
+  useEffect(() => {
+    if (currentScreen !== "chat" && currentScreen !== "dashboard") {
+      setMessages([]);
+      setCurrentChatId(null);
+      setCurrentChatTitle(null);
+    }
+  }, [currentScreen]);
+
+  const handleSelectChat = async (chatId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/chat/history/${chatId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load chat");
+      }
+
+      const chatData = await response.json();
+
+      // Convert backend message format (role) to frontend format (type)
+      const convertedMessages: Message[] = chatData.messages.map(
+        (msg: any, index: number) => ({
+          id: `${chatId}-${index}`,
+          type:
+            msg.role === "user" ? "user" : msg.role === "ai" ? "ai" : "user",
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+        })
+      );
+
+      setMessages(convertedMessages);
+      setCurrentChatId(chatId);
+      setCurrentChatTitle(chatData.title);
+      setCurrentScreen("chat");
+    } catch (error) {
+      console.error("Error loading chat:", error);
+      alert("Failed to load chat. Please try again.");
+    }
+  };
+
+  const handleSaveChat = async (title: string) => {
+    if (messages.length === 0) {
+      throw new Error("No messages to save");
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No authentication token found");
+    }
+
+    // If updating existing chat
+    if (currentChatId) {
+      const response = await fetch(
+        `http://127.0.0.1:8000/chat/history/${currentChatId}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: title,
+            messages: messages.map((m) => ({
+              role: m.type === "user" ? "user" : "ai",
+              content: m.content,
+              timestamp:
+                m.timestamp instanceof Date
+                  ? m.timestamp.toISOString()
+                  : m.timestamp,
+            })),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to update chat");
+      }
+
+      setCurrentChatTitle(title);
+      return await response.json();
+    } else {
+      // Creating new chat
+      const response = await fetch("http://127.0.0.1:8000/chat/save", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: messages.map((m) => ({
+            type: m.type,
+            content: m.content,
+            timestamp:
+              m.timestamp instanceof Date
+                ? m.timestamp.toISOString()
+                : m.timestamp,
+          })),
+          title: title,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to save chat");
+      }
+
+      const savedChat = await response.json();
+      setCurrentChatId(savedChat.id || savedChat._id);
+      setCurrentChatTitle(title);
+      return savedChat;
+    }
+  };
+
   return (
     <div className="h-screen flex bg-gray-50">
       <Sidebar
@@ -36,10 +167,26 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <Header
           currentScreen={currentScreen}
           setCurrentScreen={setCurrentScreen}
+          messages={messages}
+          onSaveChat={handleSaveChat}
+          chatTitle={currentChatTitle}
+          isEditing={!!currentChatId}
         />
         {/* Show chat screen by default on dashboard, or when explicitly on chat */}
         {(currentScreen === "dashboard" || currentScreen === "chat") && (
-          <ChatScreen />
+          <ChatScreen
+            onMessagesChange={setMessages}
+            initialMessages={
+              messages.length > 0 && currentChatId ? messages : undefined
+            }
+            chatId={currentChatId || undefined}
+          />
+        )}
+        {currentScreen === "chat-history" && (
+          <ChatHistoryScreen
+            onBack={() => setCurrentScreen("chat")}
+            onSelectChat={handleSelectChat}
+          />
         )}
         {currentScreen === "profile" && (
           <ProfileScreen

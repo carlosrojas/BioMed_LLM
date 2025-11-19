@@ -40,6 +40,16 @@ export interface SignupForm {
   conditions: string[];
 }
 
+export interface SavedChat {
+  id: string;
+  userId: string;
+  userEmail: string;
+  title: string;
+  messages: Message[];
+  createdAt: string;
+  savedAt?: string;
+}
+
 export type ScreenType =
   | "splash"
   | "login"
@@ -47,4 +57,5 @@ export type ScreenType =
   | "onboarding"
   | "dashboard"
   | "chat"
-  | "profile";
+  | "profile"
+  | "chat-history";
