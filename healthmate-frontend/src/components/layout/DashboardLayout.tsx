@@ -28,6 +28,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [currentChatTitle, setCurrentChatTitle] = useState<string | null>(null);
+  const [chatResetKey, setChatResetKey] = useState<string>("new-chat");
 
   // Reset chat state when navigating away from chat screens
   useEffect(() => {
@@ -74,10 +75,25 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       setMessages(convertedMessages);
       setCurrentChatId(chatId);
       setCurrentChatTitle(chatData.title);
+      // Update reset key when loading a chat to ensure proper remounting
+      setChatResetKey(chatId);
       setCurrentScreen("chat");
     } catch (error) {
       console.error("Error loading chat:", error);
       alert("Failed to load chat. Please try again.");
+    }
+  };
+
+  const handleNewChat = () => {
+    // Reset all chat-related state - force complete reset
+    setMessages([]);
+    setCurrentChatId(null);
+    setCurrentChatTitle(null);
+    // Force ChatScreen to remount by changing the key
+    setChatResetKey(`new-chat-${Date.now()}`);
+    // Ensure we're on the dashboard/chat screen
+    if (currentScreen !== "chat" && currentScreen !== "dashboard") {
+      setCurrentScreen("dashboard");
     }
   };
 
@@ -149,8 +165,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       }
 
       const savedChat = await response.json();
-      setCurrentChatId(savedChat.id || savedChat._id);
+      const newChatId = savedChat.id || savedChat._id;
+      setCurrentChatId(newChatId);
       setCurrentChatTitle(title);
+      // Update reset key when saving a new chat
+      setChatResetKey(newChatId);
       return savedChat;
     }
   };
@@ -169,6 +188,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           setCurrentScreen={setCurrentScreen}
           messages={messages}
           onSaveChat={handleSaveChat}
+          onNewChat={handleNewChat}
           chatTitle={currentChatTitle}
           isEditing={!!currentChatId}
         />
@@ -177,9 +197,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <ChatScreen
             onMessagesChange={setMessages}
             initialMessages={
-              messages.length > 0 && currentChatId ? messages : undefined
+              currentChatId && messages.length > 0 ? messages : undefined
             }
             chatId={currentChatId || undefined}
+            key={currentChatId || chatResetKey} // Force re-render when chat ID changes or reset key changes
           />
         )}
         {currentScreen === "chat-history" && (

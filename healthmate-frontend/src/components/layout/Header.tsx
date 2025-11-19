@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Settings, LogOut, Save, Edit } from "lucide-react";
+import { Settings, LogOut, Save, Edit, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { ScreenType, Message } from "../../types";
 import { SaveChatModal } from "../chat/SaveChatModal";
@@ -9,6 +9,7 @@ interface HeaderProps {
   setCurrentScreen?: (screen: ScreenType) => void;
   messages?: Message[];
   onSaveChat?: (title: string) => Promise<void>;
+  onNewChat?: () => void;
   chatTitle?: string | null;
   isEditing?: boolean;
 }
@@ -18,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   setCurrentScreen,
   messages = [],
   onSaveChat,
+  onNewChat,
   chatTitle,
   isEditing = false,
 }) => {
@@ -126,13 +128,31 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
+          {/* New Chat Button - only show on chat/dashboard screens */}
+          {(currentScreen === "chat" || currentScreen === "dashboard") &&
+            onNewChat && (
+              <button
+                onClick={() => {
+                  onNewChat();
+                  toast.success("New chat started", {
+                    icon: "💬",
+                    duration: 2000,
+                  });
+                }}
+                className="p-2 text-gray-600 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50"
+                title="Start New Chat"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            )}
+
           {/* Save/Update Chat Button - only show on chat/dashboard screens when messages exist */}
           {showSaveButton && onSaveChat && (
             <>
               <button
                 onClick={() => setShowSaveModal(true)}
-                className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
+                className="p-2 text-gray-600 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50"
                 title={isEditing ? "Update Chat" : "Save Chat"}
               >
                 {isEditing ? (

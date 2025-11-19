@@ -22,6 +22,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     setInputText,
     isTyping,
     chatEndRef,
+    scrollContainerRef,
     handleSendMessage,
   } = useChat({ initialMessages, chatId });
 
@@ -33,8 +34,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
   }, [messages, onMessagesChange]);
 
   return (
-    <div className="flex-1 flex flex-col">
-      <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto p-6 bg-gray-50 min-h-0"
+        style={{ scrollBehavior: "smooth" }}
+      >
         <div className="max-w-4xl mx-auto space-y-6">
           {messages.length === 0 && (
             <div className="text-center py-12">

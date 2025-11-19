@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Message } from "../types";
 import { generateAIResponse } from "../utils/aiResponse";
 
@@ -14,21 +14,52 @@ export const useChat = (options?: UseChatOptions) => {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToBottom = useCallback((smooth: boolean = true) => {
+    // Use setTimeout to ensure DOM is updated
+    setTimeout(() => {
+      // Try scrolling the container directly first (more reliable)
+      if (scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        container.scrollTop = container.scrollHeight;
+      }
+      // Also try scrollIntoView as a fallback
+      if (chatEndRef.current) {
+        chatEndRef.current.scrollIntoView({
+          behavior: smooth ? "smooth" : "auto",
+          block: "end",
+          inline: "nearest",
+        });
+      }
+    }, 50);
+  }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const timeoutId = setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    return () => clearTimeout(timeoutId);
+  }, [messages, isTyping, scrollToBottom]);
 
-  // Load initial messages if provided
+  // Load initial messages if provided (only when chatId changes to avoid re-scrolling)
   useEffect(() => {
-    if (options?.initialMessages) {
+    if (options?.initialMessages && options.initialMessages.length > 0) {
+      // Only set messages if they're different to avoid unnecessary updates
       setMessages(options.initialMessages);
+      // Scroll to bottom immediately when loading existing chat (no smooth animation)
+      const timeoutId = setTimeout(() => {
+        scrollToBottom(false);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else if (!options?.chatId) {
+      // Reset messages when starting a new chat (chatId is null/undefined)
+      // Clear messages if initialMessages is explicitly undefined or empty
+      if (!options?.initialMessages || options.initialMessages.length === 0) {
+        setMessages([]);
+      }
     }
-  }, [options?.initialMessages]);
+  }, [options?.chatId, options?.initialMessages, scrollToBottom]); // Include scrollToBottom in deps
 
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;
@@ -89,6 +120,7 @@ export const useChat = (options?: UseChatOptions) => {
     setInputText,
     isTyping,
     chatEndRef,
+    scrollContainerRef,
     handleSendMessage,
   };
 };
