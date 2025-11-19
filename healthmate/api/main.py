@@ -16,7 +16,9 @@ from healthmate.api.models import (
     TokenResponse,
     UserResponse,
     UserProfileResponse,
-    UserProfile
+    UserProfile,
+    SaveChatRequest,
+    Message as MessageModel
 )
 from healthmate.api.auth import (
     get_password_hash,
@@ -24,7 +26,15 @@ from healthmate.api.auth import (
     create_access_token,
     decode_token,
 )
-from healthmate.api.database import get_user_by_email, create_user, update_user_profile_by_email
+from healthmate.api.database import (
+    get_user_by_email, 
+    create_user, 
+    save_chat_history, 
+    update_user_profile_by_email, 
+    get_chat_history_by_user_email,
+    get_conversation_by_id as db_get_conversation_by_id,
+    update_conversation_by_id as db_update_conversation_by_id
+)
 
 # Security
 security = HTTPBearer()
@@ -274,4 +284,228 @@ async def update_user_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update profile"
+        )
+
+@app.post("/chat/save")
+async def save_chat(
+    chat_data: SaveChatRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Save the current chat conversation
+    Requires: Authorization header with Bearer token
+    """
+    # Get user from token
+    try:
+        payload = decode_token(credentials.credentials)
+        email = payload.get("sub")
+        
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: email not found"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    
+    try:
+        # Convert frontend message format (type) to backend format (role)
+        # Frontend sends: {type: "user" | "ai", content: string, timestamp: Date}
+        # Backend expects: {role: string, content: string, timestamp: datetime}
+        converted_messages = []
+        for msg in chat_data.messages:
+            # Handle timestamp - it might be a string or datetime
+            timestamp = msg.get("timestamp")
+            if isinstance(timestamp, str):
+                timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            elif isinstance(timestamp, datetime):
+                pass  # Already datetime
+            else:
+                timestamp = datetime.utcnow()
+            
+            converted_messages.append(MessageModel(
+                role=msg.get("type", "user"),  # Map "type" to "role"
+                content=msg.get("content", ""),
+                timestamp=timestamp
+            ))
+        
+        # Auto-generate title from first user message if not provided
+        title = chat_data.title
+        if not title and converted_messages:
+            first_user_msg = next((m for m in converted_messages if m.role == "user"), None)
+            if first_user_msg:
+                title = first_user_msg.content[:50] + ("..." if len(first_user_msg.content) > 50 else "")
+        
+        if not title:
+            title = "Untitled Chat"
+        
+        saved_chat = await save_chat_history(email, title, converted_messages)
+        
+        if not saved_chat:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save chat"
+            )
+        
+        # Return the saved chat with _id as string
+        saved_chat["_id"] = str(saved_chat["_id"])
+        return saved_chat
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving chat: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save chat: {str(e)}"
+        )
+
+@app.get("/chat/history")
+async def get_chat_history(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Get all saved chats for the authenticated user
+    Requires: Authorization header with Bearer token
+    """
+    try:
+        payload = decode_token(credentials.credentials)
+        email = payload.get("sub")
+        
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: email not found"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    
+    try:
+        chat_history = await get_chat_history_by_user_email(email)
+        return chat_history or []
+    except Exception as e:
+        print(f"Error getting chat history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get chat history"
+        )
+
+@app.get("/chat/history/{conversation_id}")
+async def get_conversation_by_id(
+    conversation_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Get a specific chat conversation by ID
+    Requires: Authorization header with Bearer token
+    """
+    try:
+        payload = decode_token(credentials.credentials)
+        email = payload.get("sub")
+        
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: email not found"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    
+    try:
+        conversation = await db_get_conversation_by_id(conversation_id, email)
+        if not conversation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found"
+            )
+        # Convert _id to string if present
+        if "_id" in conversation and not isinstance(conversation["_id"], str):
+            conversation["_id"] = str(conversation["_id"])
+        return conversation
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting conversation by id: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get conversation by id"
+        )
+@app.put("/chat/history/{conversation_id}")
+async def update_conversation_by_id(
+    conversation_id: str,
+    conversation_data: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Update a chat conversation by ID
+    Requires: Authorization header with Bearer token
+    """
+    try:
+        payload = decode_token(credentials.credentials)
+        email = payload.get("sub")
+        
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: email not found"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    
+    try:
+        # Convert frontend message format if messages are provided
+        if "messages" in conversation_data:
+            converted_messages = []
+            for msg in conversation_data["messages"]:
+                timestamp = msg.get("timestamp")
+                if isinstance(timestamp, str):
+                    timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                elif isinstance(timestamp, datetime):
+                    pass
+                else:
+                    timestamp = datetime.utcnow()
+                
+                converted_messages.append(MessageModel(
+                    role=msg.get("role", msg.get("type", "user")),
+                    content=msg.get("content", ""),
+                    timestamp=timestamp
+                ))
+            conversation_data["messages"] = converted_messages
+        
+        updated_conversation = await db_update_conversation_by_id(conversation_id, email, conversation_data)
+        if not updated_conversation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found"
+            )
+        # Convert _id to string if present
+        if "_id" in updated_conversation and not isinstance(updated_conversation["_id"], str):
+            updated_conversation["_id"] = str(updated_conversation["_id"])
+        return updated_conversation
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating conversation by id: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update conversation: {str(e)}"
         )
