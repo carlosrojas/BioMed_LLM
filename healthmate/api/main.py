@@ -28,17 +28,13 @@ from healthmate.api.auth import (
     decode_token,
 )
 from healthmate.api.database import (
-    
     get_user_by_email,
-    
     create_user,
-    
-    save_chat_history, 
+    save_chat_history,
     update_user_profile_by_email,
     create_llm_interaction,
     update_llm_interaction_feedback,
     get_llm_interaction_stats,
-
     get_chat_history_by_user_email,
     get_conversation_by_id as db_get_conversation_by_id,
     update_conversation_by_id as db_update_conversation_by_id

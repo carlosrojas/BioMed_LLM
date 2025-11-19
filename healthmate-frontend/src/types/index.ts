@@ -6,6 +6,9 @@ export interface Message {
   timestamp: Date;
   confidence?: number;
   sources?: string[];
+  interaction_id?: string;
+  feedback?: number; // 1 for thumbs up, -1 for thumbs down
+  feedback_comment?: string;
 }
 
 export interface ChatHistory {

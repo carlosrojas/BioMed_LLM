@@ -76,9 +76,13 @@ export const useChat = (options?: UseChatOptions) => {
     setIsTyping(true);
 
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch("http://127.0.0.1:8000/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           text: inputText,
           history: [...messages, userMessage].map((m) => ({
@@ -98,6 +102,7 @@ export const useChat = (options?: UseChatOptions) => {
             data.message ||
             "Sorry, I couldn't generate a response.",
           timestamp: new Date(),
+          interaction_id: data.interaction_id, // Store interaction_id from backend
         },
       ]);
     } catch (err) {
@@ -114,6 +119,35 @@ export const useChat = (options?: UseChatOptions) => {
     setIsTyping(false);
   };
 
+  const handleFeedback = async (interactionId: string, feedback: number, comment?: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      await fetch("http://127.0.0.1:8000/llm/feedback", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          interaction_id: interactionId,
+          feedback,
+          feedback_comment: comment,
+        }),
+      });
+      
+      // Update local message state to reflect feedback
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.interaction_id === interactionId
+            ? { ...msg, feedback, feedback_comment: comment }
+            : msg
+        )
+      );
+    } catch (err) {
+      console.error("Error submitting feedback:", err);
+    }
+  };
+
   return {
     messages,
     inputText,
@@ -122,5 +156,6 @@ export const useChat = (options?: UseChatOptions) => {
     chatEndRef,
     scrollContainerRef,
     handleSendMessage,
+    handleFeedback,
   };
 };
