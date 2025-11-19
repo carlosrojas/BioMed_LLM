@@ -23,6 +23,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     isTyping,
     chatEndRef,
     handleSendMessage,
+    handleFeedback,
   } = useChat({ initialMessages, chatId });
 
   // Notify parent when messages change
@@ -67,7 +68,11 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           )}
 
           {messages.map((message) => (
-            <Message key={message.id} message={message} />
+            <Message 
+              key={message.id} 
+              message={message} 
+              onFeedback={handleFeedback}
+            />
           ))}
 
           {isTyping && (
