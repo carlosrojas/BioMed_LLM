@@ -16,7 +16,13 @@ Answer (don't cite source files):"""
 
 def answer_with_context(user_text: str, hits):
     prompt = build_prompt(user_text, hits)
-    return generate_with_ollama(prompt, "")  # question is already in prompt
+    result = generate_with_ollama(prompt, "", include_prompt=True)
+    return {
+        "answer": result["output"],
+        "model": result["model"],
+        "system_prompt": prompt,
+        "final_prompt": result["prompt"],
+    }
 
 
 def rag_answer(question, retriever):

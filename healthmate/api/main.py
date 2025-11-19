@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 
 from healthmate.retriever.search import hybrid_search
@@ -24,10 +25,18 @@ from healthmate.api.auth import (
     create_access_token,
     decode_token,
 )
-from healthmate.api.database import get_user_by_email, create_user, update_user_profile_by_email
+from healthmate.api.database import (
+    get_user_by_email,
+    create_user,
+    update_user_profile_by_email,
+    create_llm_interaction,
+    update_llm_interaction_feedback,
+    get_llm_interaction_stats,
+)
 
 # Security
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 app = FastAPI(title="HealthMate MVP")
 
@@ -43,7 +52,14 @@ app.add_middleware(
 
 class Query(BaseModel):
     text: str
-    history: list = []
+    history: list | None = None
+    user_id: Optional[str] = None
+
+
+class FeedbackPayload(BaseModel):
+    interaction_id: str
+    feedback: int
+    feedback_comment: Optional[str] = None
 
 
 @app.get("/health")
@@ -57,7 +73,17 @@ def health():
 
 
 @app.post("/chat")
-async def chat(q: Query):
+async def chat(
+    q: Query,
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_security),
+):
+    user_id = q.user_id
+    if credentials:
+        payload = decode_token(credentials.credentials)
+        token_user_id = payload.get("user_id") or payload.get("sub")
+        if token_user_id:
+            user_id = token_user_id
+
     history_text = (
         "\n".join([f"{m['type'].capitalize()}: {m['content']}" for m in q.history])
         if q.history
@@ -65,9 +91,32 @@ async def chat(q: Query):
     )
     full_prompt = f"{history_text}\nUser: {q.text}" if history_text else q.text
     hits = hybrid_search(full_prompt, k=3)
-    ans = answer_with_context(full_prompt, hits)
-    gated = safety_gate(q.text, ans, hits)
-    return {"retrieved": hits, **gated}
+    llm_result = answer_with_context(full_prompt, hits)
+    answer = llm_result["answer"]
+    gated = safety_gate(q.text, answer, hits)
+
+    interaction_id = None
+    try:
+        interaction_id = await create_llm_interaction(
+            user_id=user_id,
+            user_input=q.text,
+            full_prompt=full_prompt,
+            system_prompt=llm_result["system_prompt"],
+            final_prompt=llm_result["final_prompt"],
+            model_response=answer,
+            model_name=llm_result["model"],
+            retrieved_documents=hits,
+            history=q.history,
+        )
+    except Exception as exc:
+        print(f"Error logging LLM interaction: {exc}")
+
+    response_payload = {
+        "interaction_id": interaction_id,
+        "retrieved": hits,
+        **gated,
+    }
+    return response_payload
 
 
 @app.post(
@@ -275,3 +324,32 @@ async def update_user_profile(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update profile"
         )
+
+
+@app.post("/llm/feedback")
+async def record_llm_feedback(payload: FeedbackPayload):
+    if payload.feedback not in (-1, 1):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Feedback must be +1 or -1",
+        )
+
+    updated = await update_llm_interaction_feedback(
+        payload.interaction_id,
+        payload.feedback,
+        payload.feedback_comment,
+    )
+
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Interaction not found or feedback unchanged",
+        )
+
+    return {"ok": True}
+
+
+@app.get("/llm/analytics")
+async def llm_analytics():
+    stats = await get_llm_interaction_stats()
+    return stats
