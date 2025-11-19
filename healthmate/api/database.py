@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 import os
 load_dotenv()
 
+from healthmate.api.models import UserProfile
+
 uri = os.getenv("MONGO_URI")
 
 # Create async MongoDB client
@@ -114,23 +116,31 @@ async def email_exists(email: str) -> bool:
         return False
 
 
-async def update_user_profile(user_id: str, profile_data: Dict[str, Any]) -> bool:
+
+async def update_user_profile_by_email(email: str, profile_data: dict) -> dict:
     """
-    Update user profile information
+    Update user profile by email and return the updated user document
     
     Args:
-        user_id: User's unique ID
+        email: User's email address
         profile_data: Dictionary containing profile fields to update
         
     Returns:
-        True if update successful, False otherwise
+        Updated user document or None if not found/error
     """
     try:
+        # Update the user document
         result = await users_collection.update_one(
-            {"_id": ObjectId(user_id)},
-            {"$set": {"profile": profile_data, "updatedAt": datetime.utcnow()}}
+            {"email": email},
+            {"$set": {**profile_data, "updatedAt": datetime.utcnow()}}
         )
-        return result.modified_count > 0
+        
+        if result.modified_count > 0:
+            # Return the updated user document
+            updated_user = await users_collection.find_one({"email": email})
+            return updated_user
+        else:
+            return None
     except Exception as e:
-        print(f"Error updating user profile: {e}")
-        return False
+        print(f"Error updating user profile by email: {e}")
+        return None
