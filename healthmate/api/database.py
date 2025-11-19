@@ -6,10 +6,13 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from typing import Optional, Dict, Any, List
 from bson import ObjectId
 from datetime import datetime
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 from healthmate.api.models import UserProfile, Conversation, Message
 
-uri = "mongodb+srv://phongdiep_db_user:uR8eNqA90Hadq92k@cluster0.yz6pjdf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+uri = os.getenv("MONGO_URI")
 
 # Create async MongoDB client
 client = AsyncIOMotorClient(uri)
