@@ -92,17 +92,39 @@ export const useChat = (options?: UseChatOptions) => {
         }),
       });
       const data = await res.json();
+      
+      // Extract message from response (backend returns {status, message, retrieved, interaction_id})
+      const messageContent = data.message || "Sorry, I couldn't generate a response.";
+      
+      // Extract sources from retrieved documents
+      const sources = data.retrieved 
+        ? data.retrieved.map((hit: any) => {
+            // Format source name nicely (remove .md extension, capitalize)
+            const sourceId = hit.id || "";
+            const formattedId = sourceId.replace(/\.md$/, "").replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+            return formattedId || "Medical guideline";
+          })
+        : [];
+      
+      // Determine if this is an urgent/abstain response
+      const status = data.status || "ok";
+      const isUrgent = status === "urgent";
+      const isAbstain = status === "abstain";
+      
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           type: "ai",
-          content:
-            data.message ||
-            data.message ||
-            "Sorry, I couldn't generate a response.",
+          content: messageContent,
           timestamp: new Date(),
-          interaction_id: data.interaction_id, // Store interaction_id from backend
+          interaction_id: data.interaction_id,
+          sources: sources.length > 0 ? sources : undefined,
+          status: status,
+          // Add visual indicators for status
+          ...(isUrgent && { confidence: 1.0 }), // High confidence for urgent
+          ...(isAbstain && { confidence: 0.3 }), // Low confidence for abstain
+          ...(!isUrgent && !isAbstain && { confidence: 0.8 }), // Default confidence for normal responses
         },
       ]);
     } catch (err) {

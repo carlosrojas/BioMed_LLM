@@ -59,9 +59,31 @@ export const Message: React.FC<MessageProps> = ({ message, onFeedback }) => {
               </div>
             )}
             <div className="flex-1">
+              {/* Status indicator for urgent/abstain responses */}
+              {message.status === "urgent" && (
+                <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
+                    <span className="text-sm font-semibold text-red-800">
+                      ⚠️ Urgent Medical Attention Required
+                    </span>
+                  </div>
+                </div>
+              )}
+              {message.status === "abstain" && (
+                <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-yellow-800">
+                      ⚠️ Unable to provide answer without sufficient sources
+                    </span>
+                  </div>
+                </div>
+              )}
+              
               <p className="whitespace-pre-wrap text-lg leading-relaxed">
                 {message.content}
               </p>
+              
               {message.confidence && (
                 <div className="mt-4 flex items-center gap-2">
                   <div className="text-sm text-gray-600">
@@ -72,23 +94,30 @@ export const Message: React.FC<MessageProps> = ({ message, onFeedback }) => {
                   </div>
                   <div className="flex-1 bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      className={`h-2 rounded-full transition-all ${
+                        message.confidence >= 0.7
+                          ? "bg-blue-600"
+                          : message.confidence >= 0.4
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
+                      }`}
                       style={{ width: `${message.confidence * 100}%` }}
                     />
                   </div>
                 </div>
               )}
-              {message.sources && (
+              
+              {message.sources && message.sources.length > 0 && (
                 <div className="mt-4">
                   <details className="text-sm">
-                    <summary className="cursor-pointer text-blue-600 hover:text-blue-800 font-medium">
-                      View Sources
+                    <summary className="cursor-pointer text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2">
+                      <span>📚 View Sources ({message.sources.length})</span>
                     </summary>
-                    <ul className="mt-2 space-y-1 text-gray-600">
+                    <ul className="mt-2 space-y-2 text-gray-600 bg-gray-50 p-3 rounded-lg">
                       {message.sources.map((source, index) => (
-                        <li key={index} className="flex items-center gap-2">
-                          <div className="w-1 h-1 bg-gray-400 rounded-full" />
-                          {source}
+                        <li key={index} className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
+                          <span className="text-sm">{source}</span>
                         </li>
                       ))}
                     </ul>

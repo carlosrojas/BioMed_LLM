@@ -4,7 +4,7 @@ import requests
 def generate_with_ollama(
     context: str,
     question: str,
-    model: str = "medqwen",
+    model: str = "llama3.1:8b",
     include_prompt: bool = False,
 ):
     prompt = f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"

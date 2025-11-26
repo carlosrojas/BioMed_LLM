@@ -5,10 +5,11 @@ export interface Message {
   content: string;
   timestamp: Date;
   confidence?: number;
-  sources?: string[];
+  sources?: string[]; // Source IDs or names from retrieved documents
   interaction_id?: string;
   feedback?: number; // 1 for thumbs up, -1 for thumbs down
   feedback_comment?: string;
+  status?: "ok" | "urgent" | "abstain"; // Response status from backend
 }
 
 export interface ChatHistory {
