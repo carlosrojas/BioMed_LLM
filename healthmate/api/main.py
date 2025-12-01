@@ -19,7 +19,8 @@ from healthmate.api.models import (
     UserProfileResponse,
     UserProfile,
     SaveChatRequest,
-    Message as MessageModel
+    Message as MessageModel,
+    SendEmailRequest
 )
 from healthmate.api.auth import (
     get_password_hash,
@@ -39,6 +40,7 @@ from healthmate.api.database import (
     get_conversation_by_id as db_get_conversation_by_id,
     update_conversation_by_id as db_update_conversation_by_id
 )
+from healthmate.api.email_service import send_chat_to_provider
 
 # Security
 security = HTTPBearer()
@@ -582,4 +584,83 @@ async def update_conversation_by_id(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update conversation: {str(e)}"
+        )
+
+@app.post("/chat/send-email")
+async def send_chat_email(
+    email_request: SendEmailRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Send a chat conversation to a healthcare provider via email
+    Requires: Authorization header with Bearer token
+    """
+    try:
+        payload = decode_token(credentials.credentials)
+        email = payload.get("sub")
+        
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: email not found"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    
+    try:
+        # Get the conversation
+        conversation = await db_get_conversation_by_id(email_request.conversation_id, email)
+        if not conversation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found"
+            )
+        
+        # Get user information
+        user = await get_user_by_email(email)
+        user_name = user.get("fullName", "User") if user else "User"
+        
+        # Convert messages to dict format for email service
+        messages_dict = []
+        for msg in conversation.get("messages", []):
+            messages_dict.append({
+                "role": msg.get("role", "user"),
+                "content": msg.get("content", ""),
+                "timestamp": msg.get("timestamp")
+            })
+        
+        # Get email subject - use provided subject or fall back to chat title
+        chat_title = conversation.get("title", "Untitled Chat")
+        email_subject = email_request.email_subject if email_request.email_subject else chat_title
+        
+        # Send email
+        success = await send_chat_to_provider(
+            provider_email=email_request.provider_email,
+            chat_title=chat_title,
+            messages=messages_dict,
+            user_name=user_name,
+            user_email=email,
+            email_subject=email_subject
+        )
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send email. Please check email configuration."
+            )
+        
+        return {"ok": True, "message": "Email sent successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error sending chat email: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send email: {str(e)}"
         )

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { MessageSquare, Calendar, Clock, ArrowLeft } from "lucide-react";
+import { MessageSquare, Calendar, Clock, ArrowLeft, Mail } from "lucide-react";
+import { SendEmailModal } from "./SendEmailModal";
+import toast from "react-hot-toast";
 
 interface ChatHistoryScreenProps {
   onBack: () => void;
@@ -27,6 +29,10 @@ export const ChatHistoryScreen: React.FC<ChatHistoryScreenProps> = ({
   const [savedChats, setSavedChats] = useState<SavedChatResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [selectedChatForEmail, setSelectedChatForEmail] =
+    useState<SavedChatResponse | null>(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
     fetchSavedChats();
@@ -90,6 +96,58 @@ export const ChatHistoryScreen: React.FC<ChatHistoryScreenProps> = ({
     );
   };
 
+  const handleOpenEmailModal = (
+    chat: SavedChatResponse,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation(); // Prevent triggering the chat selection
+    setSelectedChatForEmail(chat);
+    setEmailModalOpen(true);
+  };
+
+  const handleSendEmail = async (
+    providerEmail: string,
+    emailSubject: string
+  ) => {
+    if (!selectedChatForEmail) return;
+
+    try {
+      setSendingEmail(true);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await fetch("http://127.0.0.1:8000/chat/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          conversation_id: selectedChatForEmail._id,
+          provider_email: providerEmail,
+          email_subject: emailSubject,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to send email");
+      }
+
+      toast.success("Email sent successfully to healthcare provider!");
+      setEmailModalOpen(false);
+      setSelectedChatForEmail(null);
+    } catch (error: any) {
+      console.error("Error sending email:", error);
+      toast.error(error.message || "Failed to send email. Please try again.");
+      throw error; // Re-throw to let modal handle it
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -148,37 +206,64 @@ export const ChatHistoryScreen: React.FC<ChatHistoryScreenProps> = ({
       ) : (
         <div className="grid gap-4 max-w-4xl">
           {savedChats.map((chat) => (
-            <button
+            <div
               key={chat["_id"]}
-              onClick={() => onSelectChat(chat["_id"])}
-              className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all text-left"
+              className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all"
             >
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-semibold text-gray-900 text-lg flex-1">
-                  {chat.title}
-                </h3>
-                <MessageSquare className="w-5 h-5 text-gray-400 ml-4 flex-shrink-0" />
+              <button
+                onClick={() => onSelectChat(chat["_id"])}
+                className="w-full text-left"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-semibold text-gray-900 text-lg flex-1">
+                    {chat.title}
+                  </h3>
+                  <MessageSquare className="w-5 h-5 text-gray-400 ml-4 flex-shrink-0" />
+                </div>
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                  {getPreviewText(chat.messages)}
+                </p>
+                <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    {formatDate(chat.savedAt || chat.createdAt)}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    {formatTime(chat.savedAt || chat.createdAt)}
+                  </span>
+                  <span className="ml-auto">
+                    {chat.messages.length} message
+                    {chat.messages.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              </button>
+              <div className="mt-3 pt-3 border-t border-gray-200 flex justify-end">
+                <button
+                  onClick={(e) => handleOpenEmailModal(chat, e)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Send to healthcare provider"
+                >
+                  <Mail className="w-4 h-4" />
+                  Send to Provider
+                </button>
               </div>
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                {getPreviewText(chat.messages)}
-              </p>
-              <div className="flex items-center gap-4 text-xs text-gray-500">
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  {formatDate(chat.savedAt || chat.createdAt)}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  {formatTime(chat.savedAt || chat.createdAt)}
-                </span>
-                <span className="ml-auto">
-                  {chat.messages.length} message
-                  {chat.messages.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-            </button>
+            </div>
           ))}
         </div>
+      )}
+
+      {selectedChatForEmail && (
+        <SendEmailModal
+          isOpen={emailModalOpen}
+          onClose={() => {
+            setEmailModalOpen(false);
+            setSelectedChatForEmail(null);
+          }}
+          onSend={handleSendEmail}
+          chatTitle={selectedChatForEmail.title}
+          isLoading={sendingEmail}
+        />
       )}
     </div>
   );

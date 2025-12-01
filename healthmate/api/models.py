@@ -65,5 +65,9 @@ class Conversation(BaseModel):
     createdAt: datetime
 
 
+class SendEmailRequest(BaseModel):
+    provider_email: str = Field(..., min_length=3, max_length=100)
+    conversation_id: str
+    email_subject: Optional[str] = None  # Optional custom email subject, defaults to chat title
 
 
