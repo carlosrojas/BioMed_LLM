@@ -99,9 +99,21 @@ export const useChat = (options?: UseChatOptions) => {
       // Extract sources from retrieved documents
       const sources = data.retrieved 
         ? data.retrieved.map((hit: any) => {
-            // Format source name nicely (remove .md extension, capitalize)
-            const sourceId = hit.id || "";
-            const formattedId = sourceId.replace(/\.md$/, "").replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+            // Format source name nicely (remove .md/.pdf extension, handle subdirectories, capitalize)
+            let sourceId = hit.id || "";
+            
+            // Remove chunk suffix if present (e.g., "file.pdf#chunk_1" -> "file.pdf")
+            sourceId = sourceId.split("#chunk_")[0];
+            
+            // Remove file extension
+            sourceId = sourceId.replace(/\.(md|pdf)$/i, "");
+            
+            // Replace path separators and underscores with spaces
+            sourceId = sourceId.replace(/[\/\\]/g, " / ").replace(/_/g, " ");
+            
+            // Capitalize words
+            const formattedId = sourceId.replace(/\b\w/g, (l: string) => l.toUpperCase());
+            
             return formattedId || "Medical guideline";
           })
         : [];
